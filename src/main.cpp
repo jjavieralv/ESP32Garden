@@ -58,15 +58,8 @@
   //##CONFIG
     String header;
     WiFiServer server(80);
-    String output26State = "off";
-    String output27State = "off";
-    const int output26 = pump[0];
-    const int output27 = pump[1];
-
-
-
-
-
+    int pump_state[] = {1,1,1,1};
+    
 //##MISC
   //###DEBUG
   //select whether you want to send the data to the InfluxDB servers or just display it on the monitor without sending it to InfluxDB
@@ -188,6 +181,7 @@ void point_weather_sensor_moisture(String device,String sensor_name,int pin){
 
 void web_page(){
   WiFiClient client = server.available();   // Listen for incoming clients
+  String aux="";
 
   if (client) {                             // If a new client connects,
     Serial.println("New Client.");          // print a message out in the serial port
@@ -209,23 +203,39 @@ void web_page(){
             client.println();
             
             // turns the GPIOs on and off
-            if (header.indexOf("GET /26/on") >= 0) {
-              Serial.println("GPIO 26 on");
-              output26State = "on";
-              digitalWrite(output26, HIGH);
-            } else if (header.indexOf("GET /26/off") >= 0) {
-              Serial.println("GPIO 26 off");
-              output26State = "off";
-              digitalWrite(output26, LOW);
-            } else if (header.indexOf("GET /27/on") >= 0) {
-              Serial.println("GPIO 27 on");
-              output27State = "on";
-              digitalWrite(output27, HIGH);
-            } else if (header.indexOf("GET /27/off") >= 0) {
-              Serial.println("GPIO 27 off");
-              output27State = "off";
-              digitalWrite(output27, LOW);
-            }
+            if (header.indexOf("GET /pump0/on") >= 0) {
+              Serial.println("pump0 on");
+              pump_state[0] = 1;
+              digitalWrite(pump[0], HIGH);
+            } else if (header.indexOf("GET /pump0/off") >= 0) {
+              Serial.println("pump0 off");
+              pump_state[0] = 0;
+              digitalWrite(pump[0], LOW);
+            } else if (header.indexOf("GET /pump1/on") >= 0) {
+              Serial.println("pump1 on");
+              pump_state[1] = 1;
+              digitalWrite(pump[1], HIGH);
+            } else if (header.indexOf("GET /pump1/off") >= 0) {
+              Serial.println("pump1 off");
+              pump_state[1] = 0;
+              digitalWrite(pump[1], LOW);
+            }  else if (header.indexOf("GET /pump2/on") >= 0) {
+              Serial.println("pump2 on");
+              pump_state[2] = 1;
+              digitalWrite(pump[2], HIGH);
+            } else if (header.indexOf("GET /pump2/off") >= 0) {
+              Serial.println("pump2 off");
+              pump_state[2] = 0;
+              digitalWrite(pump[2], LOW);
+            } else if (header.indexOf("GET /pump3/on") >= 0) {
+              Serial.println("pump3 on");
+              pump_state[3] = 1;
+              digitalWrite(pump[3], HIGH);
+            } else if (header.indexOf("GET /pump3/off") >= 0) {
+              Serial.println("pump3 off");
+              pump_state[3] = 0;
+              digitalWrite(pump[3], LOW);
+            } 
             
             // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
@@ -239,26 +249,19 @@ void web_page(){
             client.println(".button2 {background-color: #555555;}</style></head>");
             
             // Web Page Heading
-            client.println("<body><h1>ESP32 Web Server</h1>");
-            
-            // Display current state, and ON/OFF buttons for GPIO 26  
-            client.println("<p>GPIO 26 - State " + output26State + "</p>");
-            // If the output26State is off, it displays the ON button       
-            if (output26State=="off") {
-              client.println("<p><a href=\"/26/on\"><button class=\"button\">ON</button></a></p>");
-            } else {
-              client.println("<p><a href=\"/26/off\"><button class=\"button button2\">OFF</button></a></p>");
-            } 
-               
-            // Display current state, and ON/OFF buttons for GPIO 27  
-            client.println("<p>GPIO 27 - State " + output27State + "</p>");
-            // If the output27State is off, it displays the ON button       
-            if (output27State=="off") {
-              client.println("<p><a href=\"/27/on\"><button class=\"button\">ON</button></a></p>");
-            } else {
-              client.println("<p><a href=\"/27/off\"><button class=\"button button2\">OFF</button></a></p>");
+            client.println("<body><h1>ESP32Garden</h1>");
+
+            for (int i = 0; i < sizeof(pump_state)/sizeof(int); i++)
+            {
+              aux = !pump_state[i] ? "ON" : "OFF";
+              client.println("<p>PUMP" + String(i) + "- State " + aux + "</p>");
+              if (!pump_state[i]) {
+                client.println("<p><a href=\"/pump" + String(i) + "/on\"><button class=\"button\">ON</button></a></p>");               
+              } else {
+                client.println("<p><a href=\"/pump" + String(i) + "/off\"><button class=\"button button2\">OFF</button></a></p>");
+                
+              }
             }
-            client.println("</body></html>");
             
             // The HTTP response ends with another blank line
             client.println();
@@ -276,6 +279,7 @@ void web_page(){
     header = "";
     // Close the connection
     client.stop();
+    header = "";
     Serial.println("Client disconnected.");
     Serial.println("");
   }
@@ -285,14 +289,14 @@ void loop() {
 
   web_page();
   //Check WiFi connection and reconnect if needed
-  if (wifiMulti.run() != WL_CONNECTED) {
-    Serial.println("Wifi connection lost");
-  }else{
-    point_weather_sensor_DHT(DEVICE,"sensor_dht_0",4);
-    point_wifi_setup(DEVICE);
-    point_weather_sensor_moisture(DEVICE,"sensor_moisture_0",32);
-  }
+  // if (wifiMulti.run() != WL_CONNECTED) {
+  //   Serial.println("Wifi connection lost");
+  // }else{
+  //   point_weather_sensor_DHT(DEVICE,"sensor_dht_0",4);
+  //   point_wifi_setup(DEVICE);
+  //   point_weather_sensor_moisture(DEVICE,"sensor_moisture_0",32);
+  // }
 
-  Serial.println("Waiting 5 second");
-  delay(5000);
+  // Serial.println("Waiting 5 second");
+  // delay(5000);
 }
