@@ -35,16 +35,20 @@
 //##SENSORS
   //###DHT11
     //####CONFIG
-      #define DHT0_PIN 4
+      String dht_name="sensor_dht_";
+      int dht_pin[]={4};
       #define DHTTYPE DHT11
     //####DEPENDENCIES
       #include "DHT.h"
-    //####INITIALIZERS
-    //  DHT dht(DHT0_PIN, DHTTYPE);
+  //###MOISURE
+    //####CONFIG
+      String moisure_name="sensor_moisture_";
+      int moisure_pin[]={33,32,35,34};
 
 //##PUMPS
   //###CONFIG
-    int pump[]={19,18,5,17};
+    int pump_pin[]={19,18,5,17};
+    int pump_state[] = {1,1,1,1};
 
 //##WIFI
   //###CONFIG
@@ -55,35 +59,36 @@
     IPAddress secondaryDNS(8, 8, 4, 4);
 
 //##WEB
-  //##CONFIG
+  //###CONFIG
     String header;
     WiFiServer server(80);
-    int pump_state[] = {1,1,1,1};
-    
+  
+//##OTA
+  //###CONFIG
+    #define OTA_PORT 1000
+  //###DEPENDENCIES
+    #include <ESPAsyncWebServer.h>
+    #include <AsyncElegantOTA.h>
+    AsyncWebServer ota(OTA_PORT);
+
+
 //##MISC
   //###DEBUG
-  //select whether you want to send the data to the InfluxDB servers or just display it on the monitor without sending it to InfluxDB
-  #define SEND_TO_INFLUX true
+    //select whether you want to send the data to the InfluxDB servers or just display it on the monitor without sending it to InfluxDB
+    #define SEND_TO_INFLUX false
+    //time since program starts
+    unsigned long time_up=0;
 
 void setup() {
   //config Serial baudrate
   Serial.begin(115200);
 
   //set PUMPS pin mode
-  for (int i = 0; i < sizeof(pump)/sizeof(int); i++)
+  for (int i = 0; i < sizeof(pump_pin)/sizeof(int); i++)
   {
-    pinMode(pump[i],OUTPUT);
-    digitalWrite(pump[i], HIGH);
+    pinMode(pump_pin[i],OUTPUT);
+    digitalWrite(pump_pin[i], HIGH);
   }
-
-  // for (int i = 0; i < sizeof(pump)/sizeof(int); i++)
-  // {
-  //   digitalWrite(pump[i], LOW);
-  //   delay(2000);
-  //   digitalWrite(pump[i], HIGH);    
-  //   delay(2000);
-  // }
-  
 
   //config wifi and check
    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS,secondaryDNS)) {
@@ -117,6 +122,14 @@ void setup() {
 
   //##WIFI
   server.begin();
+
+  //##OTA
+  ota.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->redirect("/update");
+  });
+
+  AsyncElegantOTA.begin(&ota);
+  ota.begin();
 }
 
 void point_wifi_setup(String device){
@@ -206,35 +219,35 @@ void web_page(){
             if (header.indexOf("GET /pump0/on") >= 0) {
               Serial.println("pump0 on");
               pump_state[0] = 1;
-              digitalWrite(pump[0], HIGH);
+              digitalWrite(pump_pin[0], HIGH);
             } else if (header.indexOf("GET /pump0/off") >= 0) {
               Serial.println("pump0 off");
               pump_state[0] = 0;
-              digitalWrite(pump[0], LOW);
+              digitalWrite(pump_pin[0], LOW);
             } else if (header.indexOf("GET /pump1/on") >= 0) {
               Serial.println("pump1 on");
               pump_state[1] = 1;
-              digitalWrite(pump[1], HIGH);
+              digitalWrite(pump_pin[1], HIGH);
             } else if (header.indexOf("GET /pump1/off") >= 0) {
               Serial.println("pump1 off");
               pump_state[1] = 0;
-              digitalWrite(pump[1], LOW);
+              digitalWrite(pump_pin[1], LOW);
             }  else if (header.indexOf("GET /pump2/on") >= 0) {
               Serial.println("pump2 on");
               pump_state[2] = 1;
-              digitalWrite(pump[2], HIGH);
+              digitalWrite(pump_pin[2], HIGH);
             } else if (header.indexOf("GET /pump2/off") >= 0) {
               Serial.println("pump2 off");
               pump_state[2] = 0;
-              digitalWrite(pump[2], LOW);
+              digitalWrite(pump_pin[2], LOW);
             } else if (header.indexOf("GET /pump3/on") >= 0) {
               Serial.println("pump3 on");
               pump_state[3] = 1;
-              digitalWrite(pump[3], HIGH);
+              digitalWrite(pump_pin[3], HIGH);
             } else if (header.indexOf("GET /pump3/off") >= 0) {
               Serial.println("pump3 off");
               pump_state[3] = 0;
-              digitalWrite(pump[3], LOW);
+              digitalWrite(pump_pin[3], LOW);
             } 
             
             // Display the HTML web page
@@ -251,7 +264,7 @@ void web_page(){
             // Web Page Heading
             client.println("<body><h1>ESP32Garden</h1>");
 
-            for (int i = 0; i < sizeof(pump_state)/sizeof(int); i++)
+            for (int i = 0; i < sizeof(pump_pin)/sizeof(int); i++)
             {
               aux = !pump_state[i] ? "ON" : "OFF";
               client.println("<p>PUMP" + String(i) + "- State " + aux + "</p>");
@@ -259,7 +272,6 @@ void web_page(){
                 client.println("<p><a href=\"/pump" + String(i) + "/on\"><button class=\"button\">ON</button></a></p>");               
               } else {
                 client.println("<p><a href=\"/pump" + String(i) + "/off\"><button class=\"button button2\">OFF</button></a></p>");
-                
               }
             }
             
@@ -285,18 +297,27 @@ void web_page(){
   }
 }
 
-void loop() {
+void sensors_to_influx(){
+  // Check WiFi connection and reconnect if needed
+  if (wifiMulti.run() != WL_CONNECTED){
+    Serial.println("Wifi connection lost");
+  }else{
+    point_wifi_setup(DEVICE);
+    //read the value for each sensor in the specific array indicated and publish it
+    for (int i = 0; i < sizeof(dht_pin)/sizeof(int); i++) {point_weather_sensor_DHT(DEVICE, dht_name+String(i), dht_pin[i] );}
+    for (int i = 0; i < sizeof(moisure_pin)/sizeof(int); i++ ) point_weather_sensor_moisture(DEVICE, moisure_name+String(i), moisure_pin[i]);
+  }
+}
 
+void loop(){
   web_page();
-  //Check WiFi connection and reconnect if needed
-  // if (wifiMulti.run() != WL_CONNECTED) {
-  //   Serial.println("Wifi connection lost");
-  // }else{
-  //   point_weather_sensor_DHT(DEVICE,"sensor_dht_0",4);
-  //   point_wifi_setup(DEVICE);
-  //   point_weather_sensor_moisture(DEVICE,"sensor_moisture_0",32);
-  // }
-
-  // Serial.println("Waiting 5 second");
-  // delay(5000);
+  /*manage sensors each time METRIC_PERIOD is smaller than time passed since last sensor management. This is used to be able to interact
+  with the webpage without being blocked by a big delay. This should be managed by coretask but it "probably" will be added in futher versions :)
+  */ 
+  if (millis() - time_up > METRIC_PERIOD){
+    Serial.println("Sensor readings");
+    time_up = millis();
+    sensors_to_influx();   
+    delay(100);
+  }
 }

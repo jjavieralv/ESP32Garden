@@ -9,4 +9,5 @@
 #define INFLUXDB_BUCKET "esp32-garden"
 #define TZ_INFO "CET-1CEST,M3.5.0,M10.5.0/3"
 #define DEVICE "j_terrace"
+#define METRIC_PERIOD 5000 //Period that indicates how often you are going to take metrics
 #endif
