@@ -77,9 +77,7 @@
     //time since program starts
     unsigned long time_up=0;
   
-
-    
-
+   
 void setup() {
   //config Serial baudrate
   Serial.begin(115200);
