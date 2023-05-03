@@ -76,6 +76,9 @@
   //###TIME MANAGEMENT
     //time since program starts
     unsigned long time_up=0;
+  //###ERROR MANAGEMENT
+    int error_count=0;
+    #define MAX_ERROR_TO_RESTART 3
   
    
 void setup() {
@@ -194,6 +197,8 @@ void point_weather_sensor_moisture(String device,String sensor_name,int pin){
 }
 
 
+
+
 void web_page(){
   WiFiClient client = server.available();   // Listen for incoming clients
   String aux="";
@@ -299,10 +304,15 @@ void web_page(){
   }
 }
 
+void restart_device_check(){
+  if ( error_count >= MAX_ERROR_TO_RESTART )ESP.restart();
+}
+
 void sensors_to_influx(){
   // Check WiFi connection and reconnect if needed
   if (wifiMulti.run() != WL_CONNECTED){
     Serial.println("Wifi connection lost");
+    error_count++;
   }else{
     point_wifi_setup(DEVICE);
     //read the value for each sensor in the specific array indicated and publish it
@@ -312,6 +322,7 @@ void sensors_to_influx(){
 }
 
 void loop(){
+  restart_device_check();
   web_page();
   /*manage sensors each time METRIC_PERIOD is smaller than time passed since last sensor management. This is used to be able to interact
   with the webpage without being blocked by a big delay. This should be managed by coretask but it "probably" will be added in futher versions :)
