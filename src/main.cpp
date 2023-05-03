@@ -2,9 +2,6 @@
   #if defined(ESP32)
     #include <WiFiMulti.h>
     WiFiMulti wifiMulti;
-  #elif defined(ESP8266)
-    #include <ESP8266WiFiMulti.h>
-    ESP8266WiFiMulti wifiMulti;
   #endif
 
 //## INFLUXDB
@@ -76,8 +73,12 @@
   //###DEBUG
     //select whether you want to send the data to the InfluxDB servers or just display it on the monitor without sending it to InfluxDB
     #define SEND_TO_INFLUX false
+  //###TIME MANAGEMENT
     //time since program starts
     unsigned long time_up=0;
+  
+
+    
 
 void setup() {
   //config Serial baudrate
@@ -153,6 +154,7 @@ void point_weather_sensor_DHT(String device,String sensor_name,int pin){
   weather.clearFields();
   DHT dht(pin, DHTTYPE);
   float h = dht.readHumidity();
+  delay(2000);
   float t = dht.readTemperature();
 
   if (isnan(h) || isnan(t)) {
@@ -164,13 +166,14 @@ void point_weather_sensor_DHT(String device,String sensor_name,int pin){
     weather.addField("humidity",h);
     weather.addField("temperature",t);
     Serial.println(weather.toLineProtocol());
+    if(SEND_TO_INFLUX){
+      if (!client.writePoint(weather)) {
+        Serial.print("InfluxDB write failed: ");
+        Serial.println(client.getLastErrorMessage());
+      }
+    } 
   }
-  if(SEND_TO_INFLUX){
-    if (!client.writePoint(weather)) {
-      Serial.print("InfluxDB write failed: ");
-      Serial.println(client.getLastErrorMessage());
-    }
-  }
+
 }
 
 void point_weather_sensor_moisture(String device,String sensor_name,int pin){
@@ -191,6 +194,7 @@ void point_weather_sensor_moisture(String device,String sensor_name,int pin){
   }
 
 }
+
 
 void web_page(){
   WiFiClient client = server.available();   // Listen for incoming clients
