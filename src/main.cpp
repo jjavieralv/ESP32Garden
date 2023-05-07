@@ -79,64 +79,6 @@ unsigned long time_up = 0;
 int error_count = 0;
 #define MAX_ERROR_TO_RESTART 3
 
-void setup()
-{
-  // config Serial baudrate
-  Serial.begin(115200);
-
-  // set PUMPS pin mode
-  for (int i = 0; i < sizeof(pump_pin) / sizeof(int); i++)
-  {
-    pinMode(pump_pin[i], OUTPUT);
-    digitalWrite(pump_pin[i], HIGH);
-  }
-
-  // config wifi and check
-  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
-  {
-    Serial.println("STA Failed to configure");
-  }
-  WiFi.mode(WIFI_STA);
-  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to wifi");
-  while (wifiMulti.run() != WL_CONNECTED)
-  {
-    Serial.print(".");
-    delay(100);
-  }
-  Serial.println("WiFi connected.");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.println("MAC address: ");
-  Serial.println(WiFi.macAddress());
-  Serial.println();
-
-  // sync clocks (data and certificates)
-  timeSync(TZ_INFO, "pool.ntp.org", "time.nis.gov");
-
-  // Check server connection with InfluxDB
-  for (int i = 0; i < 3; i++){
-    if (client.validateConnection()){
-      Serial.print("Connected to InfluxDB: ");
-      Serial.println(client.getServerUrl());
-    }
-    else{
-      Serial.print("InfluxDB connection failed: ");
-      Serial.println(client.getLastErrorMessage());
-      error_count++;
-    }
-  }
-
-  // ##WIFI
-  server.begin();
-
-  // ##OTA
-  ota.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
-         { request->redirect("/update"); });
-
-  AsyncElegantOTA.begin(&ota);
-  ota.begin();
-}
 
 void point_wifi_setup(String device)
 {
@@ -157,21 +99,25 @@ void point_wifi_setup(String device)
   }
 }
 
-void point_weather_sensor_DHT(String device, String sensor_name, int pin)
-{
+void wifi_show_variables(){
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.println("MAC address: ");
+  Serial.println(WiFi.macAddress());
+  Serial.println();
+}
+
+void point_weather_sensor_DHT(String device, String sensor_name, int pin){
   weather.clearTags();
   weather.clearFields();
   DHT dht(pin, DHTTYPE);
   float h = dht.readHumidity();
-  delay(2000);
+  //delay(2000);
   float t = dht.readTemperature();
 
-  if (isnan(h) || isnan(t))
-  {
+  if (isnan(h) || isnan(t)){
     Serial.println(F("Failed to read from DHT sensor!"));
-  }
-  else
-  {
+  }else{
     weather.addTag("device", device);
     weather.addTag("name", sensor_name);
     weather.addTag("type", "DHT11");
@@ -343,15 +289,13 @@ void web_page()
   }
 }
 
-void restart_device_check()
-{
+void restart_device_check(){
   if (error_count >= MAX_ERROR_TO_RESTART){
     ESP.restart();
   }
 }
 
-void sensors_to_influx()
-{
+void sensors_to_influx(){
   // Check WiFi connection and reconnect if needed
   if (wifiMulti.run() != WL_CONNECTED)
   {
@@ -371,10 +315,85 @@ void sensors_to_influx()
   }
 }
 
+void check_influx_connectivity(){
+  // Check server connection with InfluxDB
+  for (int i = 0; i < 3; i++){
+    if (client.validateConnection()){
+      Serial.print("Connected to InfluxDB: ");
+      Serial.println(client.getServerUrl());
+      i=10;
+    }
+    else{
+      Serial.print("InfluxDB connection failed: ");
+      Serial.println(client.getLastErrorMessage());
+      error_count++;
+    }
+  }
+}
+
+void wifi_config_and_connect(){
+  // config wifi and check 
+  for (int i = 0; i < 3; i++)
+  {
+    if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
+    {
+      Serial.println("STA Failed to configure");
+      error_count++;
+    }else{
+      break;
+    }
+  }
+  WiFi.mode(WIFI_STA);
+  wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to wifi");
+  while (wifiMulti.run() != WL_CONNECTED)
+  {
+    Serial.print(".");
+    delay(100);
+  }
+  Serial.println("WiFi connected.");  
+}
+
+void wifi_start_server(){
+  server.begin();
+}
+
+void ota_start_service(){
+  ota.on("/", HTTP_GET, [](AsyncWebServerRequest *request)
+       { request->redirect("/update"); });
+
+  AsyncElegantOTA.begin(&ota);
+  ota.begin();
+}
+
+void setup(){
+  // config Serial baudrate
+  Serial.begin(115200);
+
+  // set PUMPS pin mode
+  for (int i = 0; i < sizeof(pump_pin) / sizeof(int); i++)
+  {
+    pinMode(pump_pin[i], OUTPUT);
+    digitalWrite(pump_pin[i], HIGH);
+  }
+  wifi_config_and_connect();
+  wifi_show_variables();
+
+  // sync clocks (data and certificates)
+  timeSync(TZ_INFO, "pool.ntp.org", "time.nis.gov");
+  check_influx_connectivity();
+
+  //##Start web servers. Web and OTA
+  wifi_start_server();
+  ota_start_service();
+}
+
+
 void loop()
 {
   restart_device_check();
   web_page();
+  
   /*manage sensors each time METRIC_PERIOD is smaller than time passed since last sensor management. This is used to be able to interact
   with the webpage without being blocked by a big delay. This should be managed by coretask but it "probably" will be added in futher versions :)
   */
