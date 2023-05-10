@@ -279,6 +279,7 @@ void web_page()
 }
 
 void restart_device_check(){
+  error_count++;
   if (error_count >= MAX_ERROR_TO_RESTART){
     ESP.restart();
   }
@@ -289,7 +290,7 @@ void sensors_to_influx(){
   if (wifiMulti.run() != WL_CONNECTED)
   {
     Serial.println("Wifi connection lost");
-    error_count++;
+    restart_device_check();
   }
   else
   {
@@ -315,7 +316,7 @@ void check_influx_connectivity(){
     else{
       Serial.print("InfluxDB connection failed: ");
       Serial.println(client.getLastErrorMessage());
-      error_count++;
+      restart_device_check();
     }
   }
 }
@@ -327,7 +328,7 @@ void wifi_config_and_connect(){
     if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
     {
       Serial.println("STA Failed to configure");
-      error_count++;
+      restart_device_check();
     }else{
       break;
     }
@@ -358,7 +359,7 @@ void ota_start_service(){
 void mdns_server_start(){
   if(!MDNS.begin( dns_device_name )) {
    Serial.println("Error starting mDNS");
-   error_count++;
+   restart_device_check();
   }else{
     Serial.println("mDNS working");
     //add all services in array
