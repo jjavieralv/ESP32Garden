@@ -59,7 +59,10 @@ IPAddress secondaryDNS(8, 8, 4, 4);
 
 // ##mDNS
 // ### CONFIG
-const char* DNS_NAME="esp32garden";
+const char* dns_device_name="esp32garden";
+const char* dns_service_name[]={"webpage","esp32ota"};
+const char* dns_protocol[]={"tcp","tcp"};
+const uint16_t dns_port[]={80,1000};
 // ### DEPENDENCIES
 #include <ESPmDNS.h>
 
@@ -353,21 +356,19 @@ void ota_start_service(){
 }
 
 void mdns_server_start(){
-  if(!MDNS.begin( DNS_NAME )) {
+  if(!MDNS.begin( dns_device_name )) {
    Serial.println("Error starting mDNS");
+   error_count++;
   }else{
     Serial.println("mDNS working");
-    MDNS.addService("webserv", "tcp", 80); 
-    MDNS.addService("otaupdate", "tcp", 1000);
+    //add all services in array
+    for (int i = 0; i < sizeof(dns_port)/sizeof(int); i++){
+       MDNS.addService(dns_service_name[i], dns_protocol[i], dns_port[i]); 
+    }
   }
 }
 
-void setup(){
-  // config Serial baudrate
-  Serial.begin(115200);
-
-
-
+void pumps_initialize(){
   // set PUMPS pin mode
   for (int i = 0; i < sizeof(pump_pin) / sizeof(int); i++)
   {
@@ -375,6 +376,11 @@ void setup(){
     digitalWrite(pump_pin[i], HIGH);
     pump_state[i]=0;
   }
+}
+void setup(){
+  // config Serial baudrate
+  Serial.begin(115200);
+  pumps_initialize();
   wifi_config_and_connect();
   wifi_show_variables();
 
