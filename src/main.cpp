@@ -60,9 +60,9 @@ IPAddress secondaryDNS(8, 8, 4, 4);
 // ##mDNS
 // ### CONFIG
 const char* dns_device_name="esp32garden";
-const char* dns_service_name[]={"webpage","esp32ota"};
-const char* dns_protocol[]={"tcp","tcp"};
-const uint16_t dns_port[]={80,1000};
+const char* dns_service_name[]={"webpage","ota","telnet"};
+const char* dns_protocol[]={"tcp","tcp","tcp"};
+const uint16_t dns_port[]={80,1000,23};
 // ### DEPENDENCIES
 #include <ESPmDNS.h>
 
@@ -79,6 +79,10 @@ WiFiServer server(80);
 #include <AsyncElegantOTA.h>
 AsyncWebServer ota(OTA_PORT);
 
+// ##TELNET
+// ##DEPENDENCIES
+#include <TelnetStream.h>
+
 // ##MISC
 // ###DEBUG
 // select whether you want to send the data to the InfluxDB servers or just display it on the monitor without sending it to InfluxDB
@@ -89,6 +93,7 @@ unsigned long time_up = 0;
 // ###ERROR MANAGEMENT
 int error_count = 0;
 #define MAX_ERROR_TO_RESTART 3
+
 
 
 void point_wifi_setup(String device)
@@ -378,9 +383,11 @@ void pumps_initialize(){
     pump_state[i]=0;
   }
 }
-void setup(){
+
+ setup(){
   // config Serial baudrate
   Serial.begin(115200);
+  TelnetStream.begin();
   pumps_initialize();
   wifi_config_and_connect();
   wifi_show_variables();
@@ -409,7 +416,7 @@ void loop()
   */
   if (millis() - time_up > METRIC_PERIOD)
   {
-    Serial.println("Sensor readings");
+    TelnetStream.println("Sensor readings");
     time_up = millis();
     //sensors_to_influx();
     delay(100);
