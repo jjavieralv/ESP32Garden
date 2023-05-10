@@ -45,7 +45,9 @@ int moisure_pin[] = {33, 32, 35, 34};
 // ##PUMPS
 // ###CONFIG
 int pump_pin[] = {19, 18, 5, 17};
+// 1 is pump on, 0 is pump off
 int pump_state[sizeof(pump_pin)/sizeof(int)];
+String pump_name="pump";
 
 // ##WIFI
 // ###CONFIG
@@ -54,6 +56,12 @@ IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 255, 0);
 IPAddress primaryDNS(8, 8, 8, 8);
 IPAddress secondaryDNS(8, 8, 4, 4);
+
+// ##mDNS
+// ### CONFIG
+const char* DNS_NAME="esp32garden";
+// ### DEPENDENCIES
+#include <ESPmDNS.h>
 
 // ##WEB
 // ###CONFIG
@@ -176,65 +184,45 @@ void web_page()
         { // if the byte is a newline character
           // if the current line is blank, you got two newline characters in a row.
           // that's the end of the client HTTP request, so send a response:
-          if (currentLine.length() == 0)
-          {
+          if (currentLine.length() == 0){
             // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
             // and a content-type so the client knows what's coming, then a blank line:
             client.println("HTTP/1.1 200 OK");
             client.println("Content-type:text/html");
             client.println("Connection: close");
             client.println();
+            //check if the get ask to update some pump status
+            String tmp_route_first="GET /"+pump_name;
+            String tmp_route="";
 
-            // turns the GPIOs on and off
-            if (header.indexOf("GET /pump0/on") >= 0)
-            {
-              Serial.println("pump0 on");
-              pump_state[0] = 1;
-              digitalWrite(pump_pin[0], HIGH);
-            }
-            else if (header.indexOf("GET /pump0/off") >= 0)
-            {
-              Serial.println("pump0 off");
-              pump_state[0] = 0;
-              digitalWrite(pump_pin[0], LOW);
-            }
-            else if (header.indexOf("GET /pump1/on") >= 0)
-            {
-              Serial.println("pump1 on");
-              pump_state[1] = 1;
-              digitalWrite(pump_pin[1], HIGH);
-            }
-            else if (header.indexOf("GET /pump1/off") >= 0)
-            {
-              Serial.println("pump1 off");
-              pump_state[1] = 0;
-              digitalWrite(pump_pin[1], LOW);
-            }
-            else if (header.indexOf("GET /pump2/on") >= 0)
-            {
-              Serial.println("pump2 on");
-              pump_state[2] = 1;
-              digitalWrite(pump_pin[2], HIGH);
-            }
-            else if (header.indexOf("GET /pump2/off") >= 0)
-            {
-              Serial.println("pump2 off");
-              pump_state[2] = 0;
-              digitalWrite(pump_pin[2], LOW);
-            }
-            else if (header.indexOf("GET /pump3/on") >= 0)
-            {
-              Serial.println("pump3 on");
-              pump_state[3] = 1;
-              digitalWrite(pump_pin[3], HIGH);
-            }
-            else if (header.indexOf("GET /pump3/off") >= 0)
-            {
-              Serial.println("pump3 off");
-              pump_state[3] = 0;
-              digitalWrite(pump_pin[3], LOW);
-            }
+            if (header.indexOf(tmp_route_first) >= 0){
+              //find where number starts
+              //Where "GET /variable" starts + number of letters of "GET /"(5) + variable.length
+              int start_index_number=header.indexOf(tmp_route_first) + 5 + pump_name.length();
+              //find wherere number ends
+              int end_index_number=header.indexOf("/",start_index_number);
+              //get number and convert it to int
+              int index_number=header.substring(start_index_number,end_index_number).toInt();
+              Serial.print(pump_name);Serial.print(index_number);
+              Serial.print("\n state before:");Serial.println(pump_state[index_number]);
 
+              tmp_route=tmp_route_first+index_number+"/on";
+              if( header.indexOf(tmp_route) >= 0){
+                Serial.println(" on");
+                pump_state[index_number] = 1;
+                digitalWrite(pump_pin[index_number], LOW);
+  
+              }
+              tmp_route=tmp_route_first+index_number+"/off";
+              if(header.indexOf(tmp_route) >= 0){
+                Serial.println(" off");
+                pump_state[index_number] = 0;
+                digitalWrite(pump_pin[index_number], HIGH);
+              }
+              Serial.print("\n state updated:");
+              Serial.println(pump_state[index_number]);
+            }
+            
             // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
             client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
@@ -242,24 +230,22 @@ void web_page()
             // CSS to style the on/off buttons
             // Feel free to change the background-color and font-size attributes to fit your preferences
             client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
+            //green button
             client.println(".button { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;");
             client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
+            //Grey button
             client.println(".button2 {background-color: #555555;}</style></head>");
 
             // Web Page Heading
             client.println("<body><h1>ESP32Garden</h1>");
 
-            for (int i = 0; i < sizeof(pump_pin) / sizeof(int); i++)
-            {
-              aux = !pump_state[i] ? "ON" : "OFF";
+            for (int i = 0; i < sizeof(pump_pin) / sizeof(int); i++){
+              aux = pump_state[i] ? "ON" : "OFF";
               client.println("<p>PUMP" + String(i) + "- State " + aux + "</p>");
-              if (!pump_state[i])
-              {
-                client.println("<p><a href=\"/pump" + String(i) + "/on\"><button class=\"button\">ON</button></a></p>");
-              }
-              else
-              {
-                client.println("<p><a href=\"/pump" + String(i) + "/off\"><button class=\"button button2\">OFF</button></a></p>");
+              if (pump_state[i]){
+                client.println("<p><a href=\"/pump" + String(i) + "/off\"><button class=\"button\">ON</button></a></p>");
+              }else{
+                client.println("<p><a href=\"/pump" + String(i) + "/on\"><button class=\"button button2\">OFF</button></a></p>");
               }
             }
 
@@ -366,15 +352,28 @@ void ota_start_service(){
   ota.begin();
 }
 
+void mdns_server_start(){
+  if(!MDNS.begin( DNS_NAME )) {
+   Serial.println("Error starting mDNS");
+  }else{
+    Serial.println("mDNS working");
+    MDNS.addService("webserv", "tcp", 80); 
+    MDNS.addService("otaupdate", "tcp", 1000);
+  }
+}
+
 void setup(){
   // config Serial baudrate
   Serial.begin(115200);
+
+
 
   // set PUMPS pin mode
   for (int i = 0; i < sizeof(pump_pin) / sizeof(int); i++)
   {
     pinMode(pump_pin[i], OUTPUT);
     digitalWrite(pump_pin[i], HIGH);
+    pump_state[i]=0;
   }
   wifi_config_and_connect();
   wifi_show_variables();
@@ -386,6 +385,10 @@ void setup(){
   //##Start web servers. Web and OTA
   wifi_start_server();
   ota_start_service();
+
+  // start mDNS server 
+  mdns_server_start();
+
 }
 
 
@@ -401,7 +404,7 @@ void loop()
   {
     Serial.println("Sensor readings");
     time_up = millis();
-    sensors_to_influx();
+    //sensors_to_influx();
     delay(100);
   }
 }
