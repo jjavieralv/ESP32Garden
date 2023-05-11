@@ -384,10 +384,15 @@ void pumps_initialize(){
   }
 }
 
- setup(){
+void EnviarTelnet() {
+    TelnetStream.print(millis() / 1000);
+    TelnetStream.print(" Segundos, Contador=");
+}
+
+void setup(){
   // config Serial baudrate
   Serial.begin(115200);
-  TelnetStream.begin();
+  
   pumps_initialize();
   wifi_config_and_connect();
   wifi_show_variables();
@@ -403,12 +408,14 @@ void pumps_initialize(){
   // start mDNS server 
   mdns_server_start();
 
+  // start telnet server
+  TelnetStream.begin();
+
 }
 
 
 void loop()
 {
-  restart_device_check();
   web_page();
   
   /*manage sensors each time METRIC_PERIOD is smaller than time passed since last sensor management. This is used to be able to interact
@@ -416,7 +423,8 @@ void loop()
   */
   if (millis() - time_up > METRIC_PERIOD)
   {
-    TelnetStream.println("Sensor readings");
+    Serial.println("Sensor readings");
+    delay(200);
     time_up = millis();
     //sensors_to_influx();
     delay(100);
