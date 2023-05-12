@@ -7,7 +7,7 @@
 class TelnetSerial{
   private:
     bool telnet_enabled=true;
-    bool serial_enabled =true;
+    bool serial_enabled=true;
 
   public:
     TelnetSerial(int serial_baudrate,bool tn_enabled,bool seri_enabled);
@@ -17,6 +17,8 @@ class TelnetSerial{
     bool get_telnet_enabled();
     bool get_serial_enabled();
 
+    size_t write(uint8_t);
+    size_t write(const uint8_t *buffer, size_t size);
     size_t print(const __FlashStringHelper *);
     size_t print(const String &);
     size_t print(const char[]);

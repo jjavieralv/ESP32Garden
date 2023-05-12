@@ -81,7 +81,10 @@ AsyncWebServer ota(OTA_PORT);
 
 // ##TELNET
 // ##DEPENDENCIES
-#include <TelnetStream.h>
+//#include <TelnetStream.h>
+//#include <TelnetSerial.h>
+// ##CONFIG
+//TelnetSerial TSeri(115200,true,true);
 
 // ##MISC
 // ###DEBUG
@@ -96,7 +99,7 @@ int error_count = 0;
 
 
 
-void point_wifi_setup(String device)
+/* void point_wifi_setup(String device)
 {
   sensor.clearTags();
   sensor.clearFields();
@@ -104,23 +107,23 @@ void point_wifi_setup(String device)
   sensor.addTag("SSID", WiFi.SSID());
   sensor.addField("rssi", WiFi.RSSI());
 
-  Serial.println(sensor.toLineProtocol());
+  TSeri.println(sensor.toLineProtocol());
   if (SEND_TO_INFLUX)
   {
     if (!client.writePoint(sensor))
     {
-      Serial.print("InfluxDB write failed: ");
-      Serial.println(client.getLastErrorMessage());
+      TSeri.print("InfluxDB write failed: ");
+      TSeri.println(client.getLastErrorMessage());
     }
   }
 }
 
 void wifi_show_variables(){
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.println("MAC address: ");
-  Serial.println(WiFi.macAddress());
-  Serial.println();
+  TSeri.println("IP address: ");
+  TSeri.println(WiFi.localIP());
+  TSeri.println("MAC address: ");
+  TSeri.println(WiFi.macAddress());
+  TSeri.println();
 }
 
 void point_weather_sensor_DHT(String device, String sensor_name, int pin){
@@ -132,20 +135,20 @@ void point_weather_sensor_DHT(String device, String sensor_name, int pin){
   float t = dht.readTemperature();
 
   if (isnan(h) || isnan(t)){
-    Serial.println(F("Failed to read from DHT sensor!"));
+    TSeri.println(F("Failed to read from DHT sensor!"));
   }else{
     weather.addTag("device", device);
     weather.addTag("name", sensor_name);
     weather.addTag("type", "DHT11");
     weather.addField("humidity", h);
     weather.addField("temperature", t);
-    Serial.println(weather.toLineProtocol());
+    TSeri.println(weather.toLineProtocol());
     if (SEND_TO_INFLUX)
     {
       if (!client.writePoint(weather))
       {
-        Serial.print("InfluxDB write failed: ");
-        Serial.println(client.getLastErrorMessage());
+        TSeri.print("InfluxDB write failed: ");
+        TSeri.println(client.getLastErrorMessage());
       }
     }
   }
@@ -160,14 +163,14 @@ void point_weather_sensor_moisture(String device, String sensor_name, int pin)
   weather.addTag("type", "moisturev2");
   weather.addField("moisture", analogRead(pin));
 
-  Serial.println(weather.toLineProtocol());
+  TSeri.println(weather.toLineProtocol());
 
   if (SEND_TO_INFLUX)
   {
     if (!client.writePoint(weather))
     {
-      Serial.print("InfluxDB write failed: ");
-      Serial.println(client.getLastErrorMessage());
+      TSeri.print("InfluxDB write failed: ");
+      TSeri.println(client.getLastErrorMessage());
     }
   }
 }
@@ -179,14 +182,14 @@ void web_page()
 
   if (client)
   {                                // If a new client connects,
-    Serial.println("New Client."); // print a message out in the serial port
+    TSeri.println("New Client."); // print a message out in the TSeri port
     String currentLine = "";       // make a String to hold incoming data from the client
     while (client.connected())
     { // loop while the client's connected
       if (client.available())
       {                         // if there's bytes to read from the client,
         char c = client.read(); // read a byte, then
-        Serial.write(c);        // print it out the serial monitor
+        TSeri.write(c);        // print it out the TSeri monitor
         header += c;
         if (c == '\n')
         { // if the byte is a newline character
@@ -211,24 +214,24 @@ void web_page()
               int end_index_number=header.indexOf("/",start_index_number);
               //get number and convert it to int
               int index_number=header.substring(start_index_number,end_index_number).toInt();
-              Serial.print(pump_name);Serial.print(index_number);
-              Serial.print("\n state before:");Serial.println(pump_state[index_number]);
+              TSeri.print(pump_name);TSeri.print(index_number);
+              TSeri.print("\n state before:");TSeri.println(pump_state[index_number]);
 
               tmp_route=tmp_route_first+index_number+"/on";
               if( header.indexOf(tmp_route) >= 0){
-                Serial.println(" on");
+                TSeri.println(" on");
                 pump_state[index_number] = 1;
                 digitalWrite(pump_pin[index_number], LOW);
   
               }
               tmp_route=tmp_route_first+index_number+"/off";
               if(header.indexOf(tmp_route) >= 0){
-                Serial.println(" off");
+                TSeri.println(" off");
                 pump_state[index_number] = 0;
                 digitalWrite(pump_pin[index_number], HIGH);
               }
-              Serial.print("\n state updated:");
-              Serial.println(pump_state[index_number]);
+              TSeri.print("\n state updated:");
+              TSeri.println(pump_state[index_number]);
             }
             
             // Display the HTML web page
@@ -278,8 +281,8 @@ void web_page()
     // Close the connection
     client.stop();
     header = "";
-    Serial.println("Client disconnected.");
-    Serial.println("");
+    TSeri.println("Client disconnected.");
+    TSeri.println("");
   }
 }
 
@@ -294,7 +297,7 @@ void sensors_to_influx(){
   // Check WiFi connection and reconnect if needed
   if (wifiMulti.run() != WL_CONNECTED)
   {
-    Serial.println("Wifi connection lost");
+    TSeri.println("Wifi connection lost");
     restart_device_check();
   }
   else
@@ -314,13 +317,13 @@ void check_influx_connectivity(){
   // Check server connection with InfluxDB
   for (int i = 0; i < 3; i++){
     if (client.validateConnection()){
-      Serial.print("Connected to InfluxDB: ");
-      Serial.println(client.getServerUrl());
+      TSeri.print("Connected to InfluxDB: ");
+      TSeri.println(client.getServerUrl());
       i=10;
     }
     else{
-      Serial.print("InfluxDB connection failed: ");
-      Serial.println(client.getLastErrorMessage());
+      TSeri.print("InfluxDB connection failed: ");
+      TSeri.println(client.getLastErrorMessage());
       restart_device_check();
     }
   }
@@ -332,7 +335,7 @@ void wifi_config_and_connect(){
   {
     if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
     {
-      Serial.println("STA Failed to configure");
+      TSeri.println("STA Failed to configure");
       restart_device_check();
     }else{
       break;
@@ -340,13 +343,13 @@ void wifi_config_and_connect(){
   }
   WiFi.mode(WIFI_STA);
   wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to wifi");
+  TSeri.print("Connecting to wifi");
   while (wifiMulti.run() != WL_CONNECTED)
   {
-    Serial.print(".");
+    TSeri.print(".");
     delay(100);
   }
-  Serial.println("WiFi connected.");  
+  TSeri.println("WiFi connected.");  
 }
 
 void wifi_start_server(){
@@ -363,10 +366,10 @@ void ota_start_service(){
 
 void mdns_server_start(){
   if(!MDNS.begin( dns_device_name )) {
-   Serial.println("Error starting mDNS");
+   TSeri.println("Error starting mDNS");
    restart_device_check();
   }else{
-    Serial.println("mDNS working");
+    TSeri.println("mDNS working");
     //add all services in array
     for (int i = 0; i < sizeof(dns_port)/sizeof(int); i++){
        MDNS.addService(dns_service_name[i], dns_protocol[i], dns_port[i]); 
@@ -388,13 +391,12 @@ void EnviarTelnet() {
     TelnetStream.print(millis() / 1000);
     TelnetStream.print(" Segundos, Contador=");
 }
-
+ */
 void setup(){
-  // config Serial baudrate
-  Serial.begin(115200);
-  
-  pumps_initialize();
-  wifi_config_and_connect();
+  // config TSeri baudrate
+    
+  //pumps_initialize();
+/*   wifi_config_and_connect();
   wifi_show_variables();
 
   // sync clocks (data and certificates)
@@ -406,24 +408,24 @@ void setup(){
   ota_start_service();
 
   // start mDNS server 
-  mdns_server_start();
+  mdns_server_start(); */
 
   // start telnet server
-  TelnetStream.begin();
+  
 
 }
 
 
 void loop()
 {
-  web_page();
+  //web_page();
   
   /*manage sensors each time METRIC_PERIOD is smaller than time passed since last sensor management. This is used to be able to interact
   with the webpage without being blocked by a big delay. This should be managed by coretask but it "probably" will be added in futher versions :)
   */
   if (millis() - time_up > METRIC_PERIOD)
   {
-    Serial.println("Sensor readings");
+    //TSeri.println("Sensor readings");
     delay(200);
     time_up = millis();
     //sensors_to_influx();

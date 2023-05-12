@@ -4,6 +4,7 @@ TelnetSerial::TelnetSerial(int serial_baudrate,bool set_telnet,bool set_serial){
   set_telnet_enabled(set_telnet);
   set_serial_enabled(set_serial);
   Serial.begin(serial_baudrate);
+  TelnetStream.begin();
 }
 
 TelnetSerial::~TelnetSerial(){
@@ -13,9 +14,25 @@ TelnetSerial::~TelnetSerial(){
 void TelnetSerial::set_telnet_enabled(bool set_telnet){
   telnet_enabled=set_telnet;
 }
-
 void TelnetSerial::set_serial_enabled(bool set_serial){
   serial_enabled=set_serial;
+}
+
+bool TelnetSerial::get_telnet_enabled(){
+  return telnet_enabled;
+}
+
+bool TelnetSerial::get_serial_enabled(){
+  return serial_enabled;
+}
+
+size_t TelnetSerial::write(uint8_t c){
+  if(get_telnet_enabled())TelnetStream.write(c);
+  if(get_serial_enabled())Serial.write(c);
+}
+size_t TelnetSerial::write(const uint8_t *buffer, size_t size){
+  if(get_telnet_enabled())TelnetStream.write(buffer,size);
+  if(get_serial_enabled())Serial.write(buffer,size);
 }
 
 size_t TelnetSerial::print(const __FlashStringHelper *ifsh){
@@ -44,7 +61,7 @@ size_t TelnetSerial::print(int n, int base){
 }
 size_t TelnetSerial::print(unsigned int n, int base){
   if(get_telnet_enabled())TelnetStream.print(n,base);
-  if(get_serial_enabled())Serial.print(n,base);if
+  if(get_serial_enabled())Serial.print(n,base);
 }
 size_t TelnetSerial::print(long n, int base){
   if(get_telnet_enabled())TelnetStream.print(n,base);
