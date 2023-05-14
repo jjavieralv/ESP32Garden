@@ -283,8 +283,11 @@ void web_page()
   }
 }
 
-void restart_device_check(){
+void increment_error_count(){
   error_count++;
+} 
+
+void error_management_check(){
   if (error_count >= MAX_ERROR_TO_RESTART){
     ESP.restart();
   }
@@ -295,7 +298,7 @@ void sensors_to_influx(){
   if (wifiMulti.run() != WL_CONNECTED)
   {
     Serial.println("Wifi connection lost");
-    restart_device_check();
+    increment_error_count();
   }
   else
   {
@@ -321,7 +324,7 @@ void check_influx_connectivity(){
     else{
       Serial.print("InfluxDB connection failed: ");
       Serial.println(client.getLastErrorMessage());
-      restart_device_check();
+      increment_error_count();
     }
   }
 }
@@ -333,7 +336,7 @@ void wifi_config_and_connect(){
     if (!WiFi.config(local_IP, gateway, subnet, primaryDNS, secondaryDNS))
     {
       Serial.println("STA Failed to configure");
-      restart_device_check();
+      increment_error_count();
     }else{
       break;
     }
@@ -364,7 +367,7 @@ void ota_start_service(){
 void mdns_server_start(){
   if(!MDNS.begin( dns_device_name )) {
    Serial.println("Error starting mDNS");
-   restart_device_check();
+   increment_error_count();
   }else{
     Serial.println("mDNS working");
     //add all services in array
@@ -384,10 +387,10 @@ void pumps_initialize(){
   }
 }
 
- setup(){
+void setup(){
   // config Serial baudrate
   Serial.begin(115200);
-  TelnetStream.begin();
+
   pumps_initialize();
   wifi_config_and_connect();
   wifi_show_variables();
@@ -402,13 +405,13 @@ void pumps_initialize(){
 
   // start mDNS server 
   mdns_server_start();
-
+  TelnetStream.begin();
 }
 
 
 void loop()
 {
-  restart_device_check();
+  error_management_check();
   web_page();
   
   /*manage sensors each time METRIC_PERIOD is smaller than time passed since last sensor management. This is used to be able to interact
