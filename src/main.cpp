@@ -60,9 +60,9 @@ IPAddress secondaryDNS(8, 8, 4, 4);
 // ##mDNS
 // ### CONFIG
 const char* dns_device_name="esp32garden";
-const char* dns_service_name[]={"webpage","ota","telnet"};
-const char* dns_protocol[]={"tcp","tcp","tcp"};
-const uint16_t dns_port[]={80,1000,23};
+const char* dns_service_name[]={"webpage","ota"};
+const char* dns_protocol[]={"tcp","tcp"};
+const uint16_t dns_port[]={80,1000};
 // ### DEPENDENCIES
 #include <ESPmDNS.h>
 
@@ -79,9 +79,6 @@ WiFiServer server(80);
 #include <AsyncElegantOTA.h>
 AsyncWebServer ota(OTA_PORT);
 
-// ##TELNET
-// ##DEPENDENCIES
-#include <TelnetStream.h>
 
 // ##MISC
 // ###DEBUG
@@ -405,7 +402,6 @@ void setup(){
 
   // start mDNS server 
   mdns_server_start();
-  TelnetStream.begin();
 }
 
 
@@ -419,7 +415,7 @@ void loop()
   */
   if (millis() - time_up > METRIC_PERIOD)
   {
-    TelnetStream.println("Sensor readings");
+    Serial.println("Sensor readings");
     time_up = millis();
     //sensors_to_influx();
     delay(100);
